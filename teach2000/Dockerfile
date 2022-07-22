@@ -17,4 +17,5 @@ WORKDIR /teach2000
 ADD . /teach2000/
 
 # Install any needed packages specified in requirements.txt
+RUN python -m pip install psycopg2-binary
 RUN pip install -r requirements.txt
