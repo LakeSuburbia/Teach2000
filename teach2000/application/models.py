@@ -37,6 +37,7 @@ class Soort(Naam):
 
 class Foto(models.Model):
     soort = models.ForeignKey(Soort, on_delete=models.CASCADE)
+    foto = models.ImageField(upload_to="fotos", blank=True)
 
 
 class LijktOp(models.Model):
@@ -126,6 +127,7 @@ class QuizAntwoord(models.Model):
 
 
 # Score management modellen
+
 
 class SoortScoreManager(models.Model):
     def antwoord(self, antwoord: QuizAntwoord):
