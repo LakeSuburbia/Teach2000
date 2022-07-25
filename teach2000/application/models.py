@@ -57,19 +57,19 @@ class Quiz(models.Model):
     type = models.IntegerField(choices=QUIZTYPES.choices, default=1)
 
 
-class QuizSessieManager(models.Model):
-    def antwoord(self, antwoord: QuizAntwoord):
-        sessie, _ = QuizSessie.objects.get_or_create(user=antwoord.user)
-        sessie.antwoorden += [antwoord]
-        sessie.save()
-
-
 class QuizVraag(models.Model):
     soort = models.ForeignKey(Soort, on_delete=models.CASCADE)
     quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE)
 
 
 # quiz sessie basis modellen
+
+
+class QuizSessieManager(models.Model):
+    def antwoord(self, antwoord: QuizAntwoord):
+        sessie, _ = QuizSessie.objects.get_or_create(user=antwoord.user)
+        sessie.antwoorden += [antwoord]
+        sessie.save()
 
 
 class QuizSessie(models.Model):
