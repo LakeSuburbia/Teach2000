@@ -14,7 +14,7 @@ services:
       - "host.docker.internal:172.17.0.1"
   web:
     build: .
-    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    command: bash run_project.sh
     volumes:
       - .:/teach2000
     ports:
