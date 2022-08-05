@@ -19,9 +19,21 @@ class Klasse(Naam):
 class Familie(Naam):
     klasse_id = models.ForeignKey(Klasse, on_delete=models.CASCADE)
 
+    @property
+    def klasse(self):
+        return Klasse.objects.get(pk=self.klasse_id)
+
 
 class Genus(Naam):
     familie_id = models.ForeignKey(Familie, on_delete=models.CASCADE)
+
+    @property
+    def familie(self):
+        return Familie.objects.get(pk=self.familie_id)
+
+    @property
+    def klasse(self):
+        return self.familie.klasse
 
 
 class Soort(Naam):
@@ -33,6 +45,18 @@ class Soort(Naam):
 
     genus_id = models.ForeignKey(Genus, on_delete=models.CASCADE)
     moeilijkheidsgraad = models.IntegerField(choices=MOEILIJKHEIDSGRADEN.choices)
+
+    @property
+    def genus(self):
+        return Genus.objects.get(pk=self.genus_id)
+
+    @property
+    def familie(self):
+        return self.genus.familie
+
+    @property
+    def soort(self):
+        return self.genus.klasse
 
 
 class Foto(models.Model):
