@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from random import sample
+
 from django.contrib.auth.models import User
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
 
@@ -21,7 +24,7 @@ class Familie(Naam):
 
     @property
     def klasse(self):
-        return Klasse.objects.get(pk=self.klasse_id)
+        return self.klasse_id
 
 
 class Genus(Naam):
@@ -29,7 +32,7 @@ class Genus(Naam):
 
     @property
     def familie(self):
-        return Familie.objects.get(pk=self.familie_id)
+        return self.familie_id
 
     @property
     def klasse(self):
@@ -48,7 +51,7 @@ class Soort(Naam):
 
     @property
     def genus(self):
-        return Genus.objects.get(pk=self.genus_id)
+        return self.genus_id
 
     @property
     def familie(self):
@@ -57,6 +60,36 @@ class Soort(Naam):
     @property
     def soort(self):
         return self.genus.klasse
+
+    @property
+    def lijkt_op(self) -> list[Soort]:
+        return list(LijktOp.objects.filter(soort1=self)) + list(
+            LijktOp.objects.filter(soort2=self)
+        )
+
+    @property
+    def lijkt_een_beetje_op(self) -> list[Soort]:
+        lijkt_op = self.lijkt_op
+        lijkt_een_beetje_op = []
+        for soort in lijkt_op:
+            lijkt_een_beetje_op += soort.lijkt_op
+        return list(set(lijkt_een_beetje_op))
+
+    def meerkeuze_opties(self, aantal: int) -> list[Soort]:
+        lijkt_op = self.lijkt_op
+        if len(lijkt_op) >= aantal:
+            return sample(self.lijkt_op, aantal)
+        potentiele_soorten = lijkt_op + self.lijkt_een_beetje_op
+        if len(potentiele_soorten) >= aantal:
+            return sample(potentiele_soorten, aantal)
+        soort_ids = [soort.id for soort in potentiele_soorten]
+        potentiele_soorten += list(
+            sample(
+                Soort.objects.exclude(pk__in=soort_ids),
+                len(potentiele_soorten) - aantal,
+            )
+        )
+        return potentiele_soorten
 
 
 class Foto(models.Model):
@@ -80,10 +113,15 @@ class Quiz(models.Model):
     naam = models.CharField(max_length=100)
     type = models.IntegerField(choices=QUIZTYPES.choices, default=1)
 
+    def meerkeuze_vraag(self, soort: Soort, aantal: int = 5):
+        meerkeuze_opties = soort.meerkeuze_opties(aantal=aantal)
+        QuizVraag(soort=soort, quiz=self, opties=meerkeuze_opties)
+
 
 class QuizVraag(models.Model):
     soort = models.ForeignKey(Soort, on_delete=models.CASCADE)
     quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE)
+    meerkeuze_opties = ArrayField(Soort, max_length=20, null=True)
 
 
 # quiz sessie basis modellen
@@ -136,8 +174,8 @@ class QuizAntwoord(models.Model):
         **kwargs,
     ):
         super().__init__(antwoord=antwoord.lower(), **args, **kwargs)
-        SoortScore.antwoord(self)
-        QuizSessie.antwoord(self)
+        SoortScore.objects.antwoord(self)
+        QuizSessie.objects.antwoord(self)
 
     @property
     def correct(self) -> bool:
@@ -153,12 +191,12 @@ class QuizAntwoord(models.Model):
 # Score management modellen
 
 
-class SoortScoreManager(models.Model):
+class SoortScoreManager(models.Manager):
     def antwoord(self, antwoord: QuizAntwoord):
         score, _ = SoortScore.objects.get_or_create(
             soort=antwoord.quizvraag.soort, user=antwoord.user
         )
-        score.antwoorden += [antwoord]
+        score.antwoorden.append(antwoord)
         score.save()
 
 
@@ -170,7 +208,7 @@ class SoortScore(models.Model):
 
     @property
     def antwoorden(self) -> list[QuizAntwoord]:
-        return list(QuizAntwoord.objects.filter(quizvraag__soort=self))
+        return list(QuizAntwoord.objects.filter(quizvraag__soort=self.soort))
 
     @property
     def score(self) -> int:
